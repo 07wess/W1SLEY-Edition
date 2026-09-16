@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>W1SLEYEdition</AssemblyName>
+    <RootNamespace>W1sleyEdition</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\w1sley.ico</ApplicationIcon>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Authors>W1SLEY Edition contributors</Authors>
+    <Description>Windows 11 performans, oyun profili, sistem sağlığı ve geri alma merkezi.</Description>
+    <Product>W1SLEY Edition</Product>
+    <Copyright>Copyright © 2026 W1SLEY Edition contributors</Copyright>
+    <Platforms>x64</Platforms>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="10.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\w1sley-logo.png" />
+    <Resource Include="Assets\w1sley-logo-256.png" />
+    <Resource Include="Assets\w1sley.ico" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,27 @@
+﻿# Build outputs
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+*.pdb
+
+# IDE and OS
+.vs/
+.idea/
+*.user
+*.suo
+*.cache
+*.log
+.DS_Store
+Thumbs.db
+
+# Sensitive / Local Data
+Tools/
+Logs/
+*.jsonl
+hit.txt
+*.tmp
+
+# Installer outputs
+installer/Output/
