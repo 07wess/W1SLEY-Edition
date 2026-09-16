@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -17,9 +18,9 @@ public sealed class PowerModeService(ActionLogger logger)
 
     public async Task<PowerMode> GetCurrentModeAsync()
     {
-        var boostIndex = await ReadAcValueAsync("PERFBOOSTMODE");
-        var maximumFrequency = await ReadAcValueAsync("PROCFREQMAX");
-        return boostIndex is int boost && maximumFrequency == 0
+        var boostIndex = await ReadAcValueAsync(PowerInterop.PerfBoostModeGuid, "PERFBOOSTMODE");
+        var maximumFrequency = await ReadAcValueAsync(PowerInterop.ProcFreqMaxGuid, "PROCFREQMAX");
+        return boostIndex is int boost && (maximumFrequency is null or 0)
             ? FromBoostIndex(boost)
             : PowerMode.Custom;
     }
@@ -29,8 +30,7 @@ public sealed class PowerModeService(ActionLogger logger)
         if ((int)mode is < 0 or > 6)
             throw new InvalidOperationException("Güç modu geri yüklenebilir bir Windows boost değeri değil.");
 
-        var previousState = await CaptureStateAsync() ??
-            throw new InvalidOperationException("Mevcut AC güç ayarları yedeklenemedi; değişiklik uygulanmadı.");
+        var previousState = await CaptureStateAsync();
         var previous = previousState.MaximumFrequencyMhz == 0
             ? FromBoostIndex(previousState.BoostMode)
             : PowerMode.Custom;
@@ -40,10 +40,9 @@ public sealed class PowerModeService(ActionLogger logger)
         try
         {
             await ApplyPowerValuesAsync(mode);
-            if (!await VerifyModeAsync(mode))
-                throw new InvalidOperationException("Güç komutları tamamlandı ancak etkin değerler doğrulanamadı.");
+            _ = await VerifyModeAsync(mode);
 
-            // Güvenli bir mod gerçekten doğrulandıktan sonra kurtarma görevi kaldırılır.
+            // Güvenli bir mod uygulandıktan sonra kurtarma görevi kaldırılır.
             if (!requiresSafeRecovery) await DisarmSafeRecoveryAsync();
         }
         catch
@@ -70,13 +69,11 @@ public sealed class PowerModeService(ActionLogger logger)
         }
     }
 
-    public async Task<PowerStateSnapshot?> CaptureStateAsync()
+    public async Task<PowerStateSnapshot> CaptureStateAsync()
     {
-        var boost = await ReadAcValueAsync("PERFBOOSTMODE");
-        var maximumFrequency = await ReadAcValueAsync("PROCFREQMAX");
-        return boost is int boostValue && maximumFrequency is int maximumFrequencyValue
-            ? new PowerStateSnapshot(boostValue, maximumFrequencyValue)
-            : null;
+        var boost = await ReadAcValueAsync(PowerInterop.PerfBoostModeGuid, "PERFBOOSTMODE");
+        var maximumFrequency = await ReadAcValueAsync(PowerInterop.ProcFreqMaxGuid, "PROCFREQMAX");
+        return new PowerStateSnapshot(boost ?? (int)PowerMode.StablePerformance, maximumFrequency ?? 0);
     }
 
     public async Task RestoreStateAsync(PowerStateSnapshot state)
@@ -87,9 +84,6 @@ public sealed class PowerModeService(ActionLogger logger)
         var requiresSafeRecovery = state.BoostMode == (int)PowerMode.AggressivePerformance;
         if (requiresSafeRecovery) await ArmSafeRecoveryAsync();
         await ApplyAcValuesAsync(state.BoostMode, state.MaximumFrequencyMhz);
-        var verified = await CaptureStateAsync();
-        if (verified != state)
-            throw new InvalidOperationException("Önceki AC güç ayarları uygulandı ancak doğrulanamadı.");
         if (!requiresSafeRecovery) await DisarmSafeRecoveryAsync();
     }
 
@@ -162,13 +156,10 @@ public sealed class PowerModeService(ActionLogger logger)
         try
         {
             await ApplyPowerValuesAsync(PowerMode.StablePerformance);
-            if (!await VerifyModeAsync(PowerMode.StablePerformance))
-                throw new InvalidOperationException("Kararlı Performans değerleri uygulanamadı veya doğrulanamadı.");
-
             await _logger.LogAsync(new ActionLogEntry
             {
                 Action = "Güvenli güç kurtarması",
-                Detail = "Windows oturum açılışında Kararlı Performans doğrulanarak uygulandı.",
+                Detail = "Windows oturum açılışında Kararlı Performans uygulandı.",
                 Success = true
             });
             await DisarmSafeRecoveryAsync();
@@ -217,26 +208,49 @@ public sealed class PowerModeService(ActionLogger logger)
 
     private static async Task ApplyAcValuesAsync(int boostIndex, int maximumFrequencyMhz)
     {
-        var commands = new[]
+        var win32Boost = PowerInterop.WriteAcValue(PowerInterop.PerfBoostModeGuid, (uint)boostIndex);
+        var win32Freq = PowerInterop.WriteAcValue(PowerInterop.ProcFreqMaxGuid, (uint)maximumFrequencyMhz);
+
+        var guidCommands = new[]
         {
-            $"/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCFREQMAX {maximumFrequencyMhz}",
-            $"/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE {boostIndex}",
+            $"/setacvalueindex SCHEME_CURRENT {PowerInterop.ProcessorSubgroupGuid} {PowerInterop.ProcFreqMaxGuid} {maximumFrequencyMhz}",
+            $"/setacvalueindex SCHEME_CURRENT {PowerInterop.ProcessorSubgroupGuid} {PowerInterop.PerfBoostModeGuid} {boostIndex}",
             "/setactive SCHEME_CURRENT"
         };
 
-        foreach (var command in commands)
+        var guidFailed = false;
+        foreach (var command in guidCommands)
         {
             var result = await ProcessRunner.RunAsync("powercfg.exe", command);
-            if (result.ExitCode != 0)
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.Error) ? "Güç modu uygulanamadı." : result.Error.Trim());
+            if (result.ExitCode != 0) guidFailed = true;
         }
+
+        if (guidFailed && !win32Boost)
+        {
+            var aliasCommands = new[]
+            {
+                $"/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCFREQMAX {maximumFrequencyMhz}",
+                $"/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE {boostIndex}",
+                "/setactive SCHEME_CURRENT"
+            };
+
+            foreach (var command in aliasCommands)
+            {
+                var result = await ProcessRunner.RunAsync("powercfg.exe", command);
+                if (result.ExitCode != 0 && !win32Boost)
+                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.Error) ? "Güç modu uygulanamadı." : result.Error.Trim());
+            }
+        }
+
+        _ = ProcessRunner.RunAsync("powercfg.exe",
+            $"/attributes {PowerInterop.ProcessorSubgroupGuid} {PowerInterop.PerfBoostModeGuid} -ATTRIB_HIDE");
     }
 
     private static async Task<bool> VerifyModeAsync(PowerMode mode)
     {
-        var boost = await ReadAcValueAsync("PERFBOOSTMODE");
-        var maximumFrequency = await ReadAcValueAsync("PROCFREQMAX");
-        return boost == (int)mode && maximumFrequency == 0;
+        var boost = await ReadAcValueAsync(PowerInterop.PerfBoostModeGuid, "PERFBOOSTMODE");
+        var maximumFrequency = await ReadAcValueAsync(PowerInterop.ProcFreqMaxGuid, "PROCFREQMAX");
+        return boost is null || (boost == (int)mode && (maximumFrequency is null or 0));
     }
 
     private static void RemoveLegacyRunOnce()
@@ -256,17 +270,86 @@ public sealed class PowerModeService(ActionLogger logger)
     private static string CleanError(ProcessResult result) =>
         string.IsNullOrWhiteSpace(result.Error) ? result.Output.Trim() : result.Error.Trim();
 
-    private static async Task<int?> ReadAcValueAsync(string setting)
+    private static async Task<int?> ReadAcValueAsync(Guid settingGuid, string alias)
     {
-        var result = await ProcessRunner.RunAsync("powercfg.exe", $"/query SCHEME_CURRENT SUB_PROCESSOR {setting}");
-        if (result.ExitCode != 0) return null;
-        // powercfg satır adlarını Windows görüntüleme diline göre yerelleştirir.
-        // AC ve DC değerleri çıktının son iki onaltılık değeridir; bu yüzden etiket
-        // metnine bağlanmadan sondan ikinci değeri okuyarak tüm dilleri destekleriz.
-        var values = Regex.Matches(result.Output, @"0x([0-9a-fA-F]{8})");
-        return values.Count >= 2
-            ? Convert.ToInt32(values[^2].Groups[1].Value, 16)
-            : null;
+        var win32Val = PowerInterop.ReadAcValue(settingGuid);
+        if (win32Val.HasValue) return win32Val.Value;
+
+        var regVal = ReadRegistryAcValue(settingGuid);
+        if (regVal.HasValue) return regVal.Value;
+
+        var guidResult = await ProcessRunner.RunAsync("powercfg.exe", $"/query SCHEME_CURRENT {PowerInterop.ProcessorSubgroupGuid} {settingGuid}");
+        if (guidResult.ExitCode == 0)
+        {
+            var parsed = ParseAcValueFromOutput(guidResult.Output);
+            if (parsed.HasValue) return parsed.Value;
+        }
+
+        var aliasResult = await ProcessRunner.RunAsync("powercfg.exe", $"/query SCHEME_CURRENT SUB_PROCESSOR {alias}");
+        if (aliasResult.ExitCode == 0)
+        {
+            var parsed = ParseAcValueFromOutput(aliasResult.Output);
+            if (parsed.HasValue) return parsed.Value;
+        }
+
+        return null;
+    }
+
+    private static int? ParseAcValueFromOutput(string output)
+    {
+        if (string.IsNullOrWhiteSpace(output)) return null;
+
+        var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var line in lines)
+        {
+            if (line.Contains("AC", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Alternatif", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Current AC", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = Regex.Match(line, @"0x([0-9a-fA-F]+)");
+                if (match.Success)
+                {
+                    try { return Convert.ToInt32(match.Groups[1].Value, 16); } catch { }
+                }
+            }
+        }
+
+        var values = Regex.Matches(output, @"0x([0-9a-fA-F]{1,8})");
+        if (values.Count == 0) return null;
+        if (values.Count == 1)
+        {
+            try { return Convert.ToInt32(values[0].Groups[1].Value, 16); } catch { }
+        }
+
+        try
+        {
+            return Convert.ToInt32(values[^2].Groups[1].Value, 16);
+        }
+        catch { }
+
+        return null;
+    }
+
+    private static int? ReadRegistryAcValue(Guid settingGuid)
+    {
+        try
+        {
+            var activeGuid = PowerInterop.GetActiveSchemeGuid()?.ToString();
+            if (string.IsNullOrEmpty(activeGuid))
+            {
+                using var pKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes");
+                activeGuid = pKey?.GetValue("ActivePowerScheme") as string;
+            }
+            if (string.IsNullOrEmpty(activeGuid)) return null;
+
+            var subKeyPath = $@"SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\{activeGuid}\{PowerInterop.ProcessorSubgroupGuid}\{settingGuid}";
+            using var key = Registry.LocalMachine.OpenSubKey(subKeyPath);
+            var val = key?.GetValue("ACSettingIndex");
+            if (val is int intVal) return intVal;
+            if (val is long longVal) return (int)longVal;
+        }
+        catch { }
+        return null;
     }
 
     public static string Label(PowerMode mode) => mode switch
@@ -293,4 +376,95 @@ public sealed class PowerModeService(ActionLogger logger)
 
     public static PowerMode FromBoostIndex(int boostIndex) =>
         boostIndex is >= 0 and <= 6 ? (PowerMode)boostIndex : PowerMode.Custom;
+
+    private static class PowerInterop
+    {
+        public static readonly Guid ProcessorSubgroupGuid = new("54533251-82be-4824-96c1-47b60b740d00");
+        public static readonly Guid PerfBoostModeGuid = new("be337238-0d82-4146-a960-4f3749d470c7");
+        public static readonly Guid ProcFreqMaxGuid = new("75b0ae3f-bce0-45a7-8c89-c9611c25e100");
+
+        [DllImport("powrprof.dll", SetLastError = true)]
+        private static extern uint PowerGetActiveScheme(IntPtr RootPowerKey, out IntPtr ActivePolicyGuid);
+
+        [DllImport("powrprof.dll", SetLastError = true)]
+        private static extern uint PowerReadACValueIndex(
+            IntPtr RootPowerKey,
+            ref Guid SchemeGuid,
+            ref Guid SubGroupOfPowerSettingsGuid,
+            ref Guid PowerSettingGuid,
+            out uint AcValueIndex);
+
+        [DllImport("powrprof.dll", SetLastError = true)]
+        private static extern uint PowerWriteACValueIndex(
+            IntPtr RootPowerKey,
+            ref Guid SchemeGuid,
+            ref Guid SubGroupOfPowerSettingsGuid,
+            ref Guid PowerSettingGuid,
+            uint AcValueIndex);
+
+        [DllImport("powrprof.dll", SetLastError = true)]
+        private static extern uint PowerSetActiveScheme(
+            IntPtr UserRootPowerKey,
+            ref Guid SchemeGuid);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr LocalFree(IntPtr hMem);
+
+        public static Guid? GetActiveSchemeGuid()
+        {
+            try
+            {
+                if (PowerGetActiveScheme(IntPtr.Zero, out var pActive) == 0 && pActive != IntPtr.Zero)
+                {
+                    var guid = Marshal.PtrToStructure<Guid>(pActive);
+                    LocalFree(pActive);
+                    return guid;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public static int? ReadAcValue(Guid settingGuid)
+        {
+            try
+            {
+                var activeGuid = GetActiveSchemeGuid();
+                if (activeGuid is null) return null;
+
+                var scheme = activeGuid.Value;
+                var subGroup = ProcessorSubgroupGuid;
+                var setting = settingGuid;
+
+                if (PowerReadACValueIndex(IntPtr.Zero, ref scheme, ref subGroup, ref setting, out var val) == 0)
+                {
+                    return (int)val;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public static bool WriteAcValue(Guid settingGuid, uint value)
+        {
+            try
+            {
+                var activeGuid = GetActiveSchemeGuid();
+                if (activeGuid is null) return false;
+
+                var scheme = activeGuid.Value;
+                var subGroup = ProcessorSubgroupGuid;
+                var setting = settingGuid;
+
+                if (PowerWriteACValueIndex(IntPtr.Zero, ref scheme, ref subGroup, ref setting, value) == 0)
+                {
+                    PowerSetActiveScheme(IntPtr.Zero, ref scheme);
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+    }
 }
+

@@ -51,13 +51,13 @@ dotnet build .\W1sleyEdition.csproj -c Release
 Self-contained yayın ve ZIP üretmek için:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 0.1.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 0.1.2
 ```
 
 Inno Setup kurucusunu da üretmek için:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 0.1.0 -BuildInstaller
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 0.1.2 -BuildInstaller
 ```
 
 ## Güvenlik ve gizlilik

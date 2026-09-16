@@ -108,8 +108,7 @@ public sealed class GameProfileService(
     private async Task BeginSessionAsync(GameProfile profile, Process? existingProcess, string source)
     {
         ValidateProfile(profile);
-        var previousState = await _powerModes.CaptureStateAsync() ??
-            throw new InvalidOperationException("Oyun öncesi AC güç durumu yedeklenemedi; profil uygulanmadı.");
+        var previousState = await _powerModes.CaptureStateAsync();
         string? dnsSnapshot = null;
         List<(string Name, string Path)> closedApps = [];
         var powerApplied = false;

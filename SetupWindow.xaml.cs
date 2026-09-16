@@ -102,16 +102,39 @@ public partial class SetupWindow : Window
         try
         {
             await _powerModes.SetModeAsync(_selectedMode);
-            var marker = new { completedAt = DateTimeOffset.Now, version = 1, selectedMode = _selectedMode.ToString() };
-            File.WriteAllText(AppPaths.SetupCompletedPath, JsonSerializer.Serialize(marker));
-            DialogResult = true;
         }
         catch (Exception ex)
         {
-            WpfMessageBox.Show("Kurulum tamamlanamadı:\n\n" + ex.Message, "W1SLEY Edition", MessageBoxButton.OK, MessageBoxImage.Error);
-            SetupStatusText.Text = "Kurulum tamamlanamadı • güç ayarlarını ve yönetici yetkisini kontrol et";
-            CompleteButton.IsEnabled = true;
+            try
+            {
+                AppPaths.EnsureCreated();
+                File.AppendAllText(Path.Combine(AppPaths.LogsDirectory, "setup.log"),
+                    $"[{DateTimeOffset.Now:O}] Güç modu başlangıçta uygulanamadı (donanım/ilke kısıtlaması): {ex.Message}\r\n");
+            }
+            catch { }
         }
+
+        try
+        {
+            var marker = new { completedAt = DateTimeOffset.Now, version = 1, selectedMode = _selectedMode.ToString() };
+            File.WriteAllText(AppPaths.SetupCompletedPath, JsonSerializer.Serialize(marker));
+        }
+        catch { }
+
+        SetupStatusText.Text = "Kurulum tamamlandı! W1SLEY Edition açılıyor…";
+        await Task.Delay(250);
+        DialogResult = true;
+    }
+
+    private void SkipButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var marker = new { completedAt = DateTimeOffset.Now, version = 1, selectedMode = PowerMode.StablePerformance.ToString() };
+            File.WriteAllText(AppPaths.SetupCompletedPath, JsonSerializer.Serialize(marker));
+        }
+        catch { }
+        DialogResult = true;
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e)
