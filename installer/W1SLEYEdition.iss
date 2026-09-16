@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "0.1.1"
 #endif
 
 #define MyAppName "W1SLEY Edition"
@@ -44,4 +44,4 @@ Name: "{autoprograms}\W1SLEY Edition"; Filename: "{app}\{#MyAppExeName}"; Workin
 Name: "{autodesktop}\W1SLEY Edition"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "W1SLEY Edition'ı başlat"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "W1SLEY Edition'ı başlat"; Flags: nowait postinstall skipifsilent runascurrentuser
