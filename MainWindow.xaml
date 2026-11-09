@@ -91,6 +91,9 @@
                         <RadioButton GroupName="MainNavigation" Tag="10" Style="{StaticResource SidebarNavButton}" Checked="NavigationButton_Checked">
                             <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Text="&#xE7BA;" FontSize="16" Width="31" /><TextBlock Text="Çökme Dedektörü" /></StackPanel>
                         </RadioButton>
+                        <RadioButton GroupName="MainNavigation" Tag="11" Style="{StaticResource SidebarNavButton}" Checked="NavigationButton_Checked">
+                            <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Text="&#xE770;" FontSize="16" Width="31" /><TextBlock Text="Windows Optimize" /></StackPanel>
+                        </RadioButton>
                     </StackPanel>
 
                     <Border Grid.Row="3" Background="#111319" BorderBrush="#252831" BorderThickness="1" CornerRadius="10" Padding="13,11">
@@ -778,6 +781,145 @@
                             <DataGridTextColumn Header="OLAY" Binding="{Binding EventLabel}" Width="210" />
                             <DataGridTextColumn Header="GÜÇ MODU" Binding="{Binding PowerMode}" Width="190" />
                             <DataGridTemplateColumn Header="AYRINTI" Width="*"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Detail}" Foreground="{StaticResource MutedBrush}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" Margin="0,2,0,0" /></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 11: Windows Optimize -->
+            <TabItem Header="Windows Optimize">
+                <Grid Margin="0,18,0,8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Üst Başlık ve Eylemler -->
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="62" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="50" Height="50" CornerRadius="14" Background="#1D2330" BorderBrush="#354968" BorderThickness="1" VerticalAlignment="Top">
+                                <TextBlock Text="&#xE770;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="23" Foreground="#64B5F6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="SİSTEM HAFİFLETME &amp; RAM KORUMASI" Style="{StaticResource KickerText}" />
+                                <TextBlock Text="Windows Boşta RAM ve Servis Optimizasyonu" FontSize="22" FontWeight="SemiBold" Margin="0,4,0,0" />
+                                <TextBlock Text="Windows'un arka planda boşuna çalışan saçma sapan servislerini, gizli Edge süreçlerini ve gereksiz yüklerini kapatır." Foreground="{StaticResource MutedBrush}" Margin="0,3,20,0" />
+                                <TextBlock x:Name="WinOptStatusText" Text="Tüm ayarlar %100 güvenlidir ve tek tıkla orijinal haline geri döndürülebilir." Foreground="#81D4FA" FontSize="11" Margin="0,5,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource CompactButton}" Content="Tümünü Seç" Click="SelectAllWinTweaks_Click" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource CompactButton}" Content="Seçimi Kaldır" Click="ClearWinTweaks_Click" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="Tara / Yenile" Click="RefreshWinTweaks_Click" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="Orijinale Dön (Geri Al)" Click="RevertWinTweaks_Click" Margin="0,0,8,0" />
+                                <Button Content="🚀 Boşta RAM Düşür &amp; Optimize Et" Click="ApplyWinTweaks_Click" Padding="18,10" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Metrik Sayaçları -->
+                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,12">
+                        <Border Style="{StaticResource InsetCardStyle}" Margin="0,0,6,0">
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="MEVCUT BOŞTA RAM" Style="{StaticResource KickerText}" />
+                                    <TextBlock x:Name="WinOptFreeRamText" Text="— GB" FontSize="24" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="&#xE950;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#626875" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource InsetCardStyle}" Margin="6,0">
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="KAZANILABİLİR POTANSİYEL" Style="{StaticResource KickerText}" />
+                                    <TextBlock Text="~2.0 - 4.0 GB" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrightBrush}" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="&#xE8FB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#814257" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource InsetCardStyle}" Margin="6,0">
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="OPTİMİZE AYARLAR" Style="{StaticResource KickerText}" />
+                                    <TextBlock x:Name="WinOptAppliedCountText" Text="0 / 10 Aktif" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#39785D" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource InsetCardStyle}" Margin="6,0,0,0">
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="GÜVENLİK DURUMU" Style="{StaticResource KickerText}" />
+                                    <TextBlock Text="%100 Güvenli" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="&#xE72E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#39785D" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                            </Grid>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Optimizasyon Listesi -->
+                    <DataGrid Grid.Row="2" x:Name="WindowsOptimizeGrid" IsReadOnly="False" RowHeight="56">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="" Width="52">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="KATEGORİ" Width="110" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1C1E26" BorderBrush="#2F3342" BorderThickness="1" CornerRadius="8" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Category}" Foreground="#D9DCE5" FontSize="11" FontWeight="SemiBold" />
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="OPTİMİZASYON / AYAR" Width="*" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" />
+                                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource MutedBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="TAHMİNİ RAM KAZANCI" Width="170" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#25171F" BorderBrush="#542B3C" BorderThickness="1" CornerRadius="8" Padding="10,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding EstimatedMemoryImpact}" Foreground="#FF80AB" FontWeight="SemiBold" FontSize="11" />
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="DURUM" Width="160" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="TweakStatusBadge" Background="#1D2027" BorderBrush="#373B46" BorderThickness="1" CornerRadius="9" Padding="9,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock x:Name="TweakStatusLabel" Text="{Binding StatusText}" Foreground="#A5A9B3" FontSize="11" FontWeight="SemiBold" />
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                <Setter TargetName="TweakStatusBadge" Property="Background" Value="#17251F" />
+                                                <Setter TargetName="TweakStatusBadge" Property="BorderBrush" Value="#285440" />
+                                                <Setter TargetName="TweakStatusLabel" Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>

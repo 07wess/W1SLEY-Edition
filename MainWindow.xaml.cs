@@ -34,6 +34,7 @@ public partial class MainWindow : Window
 
     private readonly NetworkOptimizationService _netOpt;
     private readonly MemoryOptimizationService _memOpt;
+    private readonly WindowsOptimizationService _winOpt;
     private HotKeyManagerService? _hotkeys;
 
     private readonly DispatcherTimer _monitorTimer = new() { Interval = TimeSpan.FromSeconds(5) };
@@ -46,6 +47,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<AppxItem> _apps = [];
     private readonly ObservableCollection<ActionLogEntry> _logs = [];
     private readonly ObservableCollection<CrashEventItem> _crashEvents = [];
+    private readonly ObservableCollection<WindowsOptimizeTweakItem> _winTweaks = [];
     private readonly ICollectionView _appsView;
     private readonly Forms.NotifyIcon _trayIcon = new();
     private readonly Forms.ContextMenuStrip _trayMenu = new();
@@ -72,6 +74,7 @@ public partial class MainWindow : Window
         _appCleaner = new AppCleanerService(_logger);
         _netOpt = new NetworkOptimizationService(_logger);
         _memOpt = new MemoryOptimizationService(_logger);
+        _winOpt = new WindowsOptimizationService(_logger);
         _gameProfiles = new GameProfileService(_powerModes, _optimizer, _netOpt, _logger);
         _crashDetector = new CrashDetectorService(_logger);
         _undo = new UndoService(_powerModes, _startup, _netOpt, _logger);
@@ -86,6 +89,8 @@ public partial class MainWindow : Window
         AppsGrid.ItemsSource = _appsView;
         LogsGrid.ItemsSource = _logs;
         CrashEventsGrid.ItemsSource = _crashEvents;
+        WindowsOptimizeGrid.ItemsSource = _winTweaks;
+        foreach (var tweak in _winOpt.CreateDefaultTweaks()) _winTweaks.Add(tweak);
         ProfileModeCombo.ItemsSource = new[]
         {
             new ModeOption("Agresif Performans — Aggressive", PowerMode.AggressivePerformance),
@@ -148,7 +153,8 @@ public partial class MainWindow : Window
         ("Log ve Geri Al", "Yapılan değişiklikleri incele ve desteklenen işlemleri geri al."),
         ("Ağ Ayarları Paneli", "Oyun ping, TCP latency ve DNS optimizasyon ayarları."),
         ("Kısayol Ayarları", "Küresel kısayol tuşlarını (Hotkeys) kişiselleştir."),
-        ("Çökme Dedektörü", "Beklenmeyen kapanma, mavi ekran, WHEA ve ekran sürücüsü olaylarını incele.")
+        ("Çökme Dedektörü", "Beklenmeyen kapanma, mavi ekran, WHEA ve ekran sürücüsü olaylarını incele."),
+        ("Windows Optimize", "Arka planda boşta RAM ve kaynak tüketen gereksiz Windows servislerini ve ayarlarını kapat.")
     ];
 
     private void NavigationButton_Checked(object sender, RoutedEventArgs e)
@@ -163,6 +169,7 @@ public partial class MainWindow : Window
         PageSubtitleText.Text = NavigationPages[index].Subtitle;
         if (index == 6 && IsLoaded && _apps.Count == 0) _ = ScanAppsAsync(false);
         if (index == 10 && IsLoaded && _crashEvents.Count == 0) _ = RefreshCrashEventsAsync(false);
+        if (index == 11 && IsLoaded) _ = RefreshWinTweaksAsync(false);
     }
 
     private void ToggleWindowState()
@@ -238,6 +245,7 @@ public partial class MainWindow : Window
         _trayIcon.Visible = true;
         SetStatus("Hazır");
         _ = ScanGamesAsync(false);
+        _ = RefreshWinTweaksAsync(false);
     }
 
     private void Window_Closing(object? sender, CancelEventArgs e)
@@ -1274,6 +1282,97 @@ public partial class MainWindow : Window
         {
             _logger.Log("DNS geri yükleme", ex.Message, false, null);
             return false;
+        }
+    }
+
+    private async Task RefreshWinTweaksAsync(bool showMessage)
+    {
+        try
+        {
+            SetStatus("Windows ayarları ve servisleri taranıyor…");
+            await _winOpt.RefreshStatusesAsync(_winTweaks);
+            var mem = SystemMonitorService.ReadMemory();
+            var freeGb = mem.AvailableMb / 1024.0;
+            var totalGb = mem.TotalMb / 1024.0;
+            if (WinOptFreeRamText != null)
+                WinOptFreeRamText.Text = $"{freeGb:N1} GB ({Math.Round(freeGb / totalGb * 100)}%)";
+            var applied = _winTweaks.Count(t => t.IsApplied);
+            if (WinOptAppliedCountText != null)
+                WinOptAppliedCountText.Text = $"{applied} / {_winTweaks.Count} Aktif";
+            if (WinOptStatusText != null)
+                WinOptStatusText.Text = applied == _winTweaks.Count
+                    ? "Tüm optimizasyonlar devrede. Sistem maksimum hafiflikte çalışıyor."
+                    : $"{_winTweaks.Count - applied} adet optimize edilebilir arka plan yükü bulundu.";
+            SetStatus("Windows ayarları güncellendi.");
+            if (showMessage) ShowInfo("Windows servisleri ve arka plan ayarları güncellendi.");
+        }
+        catch (Exception ex)
+        {
+            if (showMessage) ShowError(ex.Message);
+        }
+    }
+
+    private void SelectAllWinTweaks_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var tweak in _winTweaks) tweak.IsSelected = true;
+    }
+
+    private void ClearWinTweaks_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var tweak in _winTweaks) tweak.IsSelected = false;
+    }
+
+    private async void RefreshWinTweaks_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshWinTweaksAsync(true);
+    }
+
+    private async void ApplyWinTweaks_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedCount = _winTweaks.Count(t => t.IsSelected);
+        if (selectedCount == 0)
+        {
+            ShowInfo("Lütfen uygulanacak en az bir ayar seçin.");
+            return;
+        }
+
+        SetStatus("Windows optimize ediliyor ve boşta RAM temizleniyor…");
+        try
+        {
+            var (applied, freedMb) = await _winOpt.ApplyOptimizationsAsync(_winTweaks);
+            await RefreshWinTweaksAsync(false);
+            RefreshProcesses();
+            await CaptureSystemAsync();
+            SetStatus($"Optimizasyon tamamlandı! Boşaltılan RAM: {freedMb} MB");
+            ShowInfo($"Windows Optimizasyonu Başarılı!\n\n• Uygulanan ayar: {applied} adet\n• Açılan Boşta RAM: {freedMb:N0} MB\n\nArka plandaki gizli yükler sonlandırıldı ve bellek rahatlatıldı.");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Optimizasyon sırasında hata: {ex.Message}");
+        }
+    }
+
+    private async void RevertWinTweaks_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            "Seçili Windows optimizasyonları orijinal varsayılan Windows ayarlarına geri döndürülecek. Devam edilsin mi?",
+            "W1SLEY Edition",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        SetStatus("Windows ayarları varsayılana geri yükleniyor…");
+        try
+        {
+            var count = await _winOpt.RevertAllAsync(_winTweaks);
+            await RefreshWinTweaksAsync(false);
+            SetStatus($"{count} ayar orijinal haline döndürüldü.");
+            ShowInfo($"{count} adet Windows ayarı ve servisi orijinal varsayılan ayarlara başarıyla döndürüldü.");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Geri yükleme hatası: {ex.Message}");
         }
     }
 

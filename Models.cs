@@ -265,3 +265,39 @@ public sealed class SystemSnapshot
     public int? GpuMemoryClockMhz { get; init; }
     public double? GpuPowerWatts { get; init; }
 }
+
+public sealed class WindowsOptimizeTweakItem : INotifyPropertyChanged
+{
+    private bool _isSelected = true;
+    private bool _isApplied;
+    private string _statusText = "Taranıyor…";
+
+    public string Id { get; init; } = "";
+    public string Category { get; init; } = "";
+    public string Title { get; init; } = "";
+    public string Description { get; init; } = "";
+    public string EstimatedMemoryImpact { get; init; } = "";
+    public bool IsSafe { get; init; } = true;
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set { _isSelected = value; OnPropertyChanged(); }
+    }
+
+    public bool IsApplied
+    {
+        get => _isApplied;
+        set { _isApplied = value; OnPropertyChanged(); }
+    }
+
+    public string StatusText
+    {
+        get => _statusText;
+        set { _statusText = value; OnPropertyChanged(); }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}

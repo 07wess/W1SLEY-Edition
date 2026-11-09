@@ -16,6 +16,7 @@ public static class SelfTestService
         var cleaner = new AppCleanerService(logger);
         var crashDetector = new CrashDetectorService(logger);
         var compatibility = new SystemCompatibilityService();
+        var winOpt = new WindowsOptimizationService(logger);
 
         var mode = await power.GetCurrentModeAsync();
         _ = await monitor.CaptureAsync();
@@ -27,6 +28,8 @@ public static class SelfTestService
         var apps = await cleaner.ScanAsync();
         var crashEvents = await crashDetector.ScanAsync(30);
         var setupChecks = await compatibility.ScanAsync();
+        var tweaks = winOpt.CreateDefaultTweaks();
+        await winOpt.RefreshStatusesAsync(tweaks);
 
         var result = new
         {
@@ -49,6 +52,8 @@ public static class SelfTestService
             criticalCrashEventCount = crashEvents.Count(item => item.Severity == "Kritik"),
             setupCheckCount = setupChecks.Count,
             setupWarningCount = setupChecks.Count(item => item.State is "Uyarı" or "İncele"),
+            windowsOptimizeTweakCount = tweaks.Count,
+            windowsOptimizeAppliedCount = tweaks.Count(t => t.IsApplied),
             actionLogReadable = logger.ReadRecent(1) is not null
         };
         File.WriteAllText(Path.Combine(AppPaths.LogsDirectory, "self-test.json"), JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
