@@ -313,6 +313,20 @@ public partial class MainWindow : Window
             GpuPowerText.Text = snapshot.GpuPowerWatts is double power ? $"GPU {power:N1} W" : "GPU -- W";
             GpuMemoryClockText.Text = snapshot.GpuMemoryClockMhz is int memoryClock ? $"Bellek {memoryClock:N0} MHz" : "Bellek -- MHz";
             CheckTemperatureWarnings(snapshot);
+
+            if (WindowsOptimizationService.AutoRamGuardianEnabled)
+            {
+                if ((snapshot.MemoryPercent >= 80 || snapshot.AvailableMemoryMb <= 2048) &&
+                    (DateTimeOffset.Now - WindowsOptimizationService.LastAutoRamPurge).TotalSeconds >= 60)
+                {
+                    WindowsOptimizationService.LastAutoRamPurge = DateTimeOffset.Now;
+                    _ = Task.Run(() =>
+                    {
+                        WindowsOptimizationService.PurgeMemoryWorkingSets();
+                        _logger.Log("Akıllı RAM Bekçisi", $"RAM kullanımı %{snapshot.MemoryPercent:N0} (Kullanılabilir: {snapshot.AvailableMemoryMb / 1024d:N1} GB) eşiğine ulaştı; sistem çalışma kümeleri ve Standby önbelleği otomatik süpürüldü.", true, null);
+                    });
+                }
+            }
         }
         catch { }
         finally { _monitorBusy = false; }
@@ -1374,6 +1388,18 @@ public partial class MainWindow : Window
         {
             ShowError($"Geri yükleme hatası: {ex.Message}");
         }
+    }
+
+    private void AutoRamGuardianCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        WindowsOptimizationService.AutoRamGuardianEnabled = AutoRamGuardianCheck?.IsChecked == true;
+        _logger.Log("Akıllı RAM Bekçisi", WindowsOptimizationService.AutoRamGuardianEnabled ? "Otomatik RAM koruması açıldı (Eşik: %80 RAM)." : "Otomatik RAM koruması kapatıldı.", true, null);
+    }
+
+    private void RestartExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        WindowsOptimizationService.RestartExplorer();
+        SetStatus("Windows Gezgini yeniden başlatıldı.");
     }
 
     private void SetStatus(string text)

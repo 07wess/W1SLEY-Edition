@@ -816,51 +816,73 @@
                                 <Button Style="{StaticResource CompactButton}" Content="Tümünü Seç" Click="SelectAllWinTweaks_Click" Margin="0,0,8,0" />
                                 <Button Style="{StaticResource CompactButton}" Content="Seçimi Kaldır" Click="ClearWinTweaks_Click" Margin="0,0,8,0" />
                                 <Button Style="{StaticResource SecondaryButton}" Content="Tara / Yenile" Click="RefreshWinTweaks_Click" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="Gezgini Yenile" Click="RestartExplorer_Click" ToolTip="Değişikliklerin anında geçerli olması için Windows Gezginini yeniden başlatır." Margin="0,0,8,0" />
                                 <Button Style="{StaticResource SecondaryButton}" Content="Orijinale Dön (Geri Al)" Click="RevertWinTweaks_Click" Margin="0,0,8,0" />
                                 <Button Content="🚀 Boşta RAM Düşür &amp; Optimize Et" Click="ApplyWinTweaks_Click" Padding="18,10" />
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- Metrik Sayaçları -->
-                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,12">
-                        <Border Style="{StaticResource InsetCardStyle}" Margin="0,0,6,0">
+                    <!-- Akıllı Otomatik RAM Bekçisi & Metrik Sayaçları -->
+                    <StackPanel Grid.Row="1">
+                        <Border Style="{StaticResource InsetCardStyle}" Margin="0,0,0,12" Background="#131B24" BorderBrush="#204052">
                             <Grid>
-                                <StackPanel>
-                                    <TextBlock Text="MEVCUT BOŞTA RAM" Style="{StaticResource KickerText}" />
-                                    <TextBlock x:Name="WinOptFreeRamText" Text="— GB" FontSize="24" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🛡️ AKILLI OTOMATİK RAM BEKÇİSİ (ARKA PLAN KORUMASI)" FontSize="13" FontWeight="Bold" Foreground="#4DD0E1" />
+                                        <Border Background="#1E3842" CornerRadius="6" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="OTOMATİK KORUMA" FontSize="9" FontWeight="Bold" Foreground="#80DEEA" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="RAM kullanımı %80'in üzerine çıktığında veya kullanılabilir bellek 2 GB altına indiğinde, Standby önbelleğini arka planda oyunu hiç hissettirmeden otomatik süpürür." Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,4,0,0" />
                                 </StackPanel>
-                                <TextBlock Text="&#xE950;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#626875" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                                <CheckBox Grid.Column="1" x:Name="AutoRamGuardianCheck" IsChecked="True" Checked="AutoRamGuardianCheck_Changed" Unchecked="AutoRamGuardianCheck_Changed" VerticalAlignment="Center" Content="Bekçi Devrede" FontWeight="SemiBold" Foreground="#B2EBF2" />
                             </Grid>
                         </Border>
-                        <Border Style="{StaticResource InsetCardStyle}" Margin="6,0">
-                            <Grid>
-                                <StackPanel>
-                                    <TextBlock Text="KAZANILABİLİR POTANSİYEL" Style="{StaticResource KickerText}" />
-                                    <TextBlock Text="~2.0 - 4.0 GB" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrightBrush}" Margin="0,6,0,0" />
-                                </StackPanel>
-                                <TextBlock Text="&#xE8FB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#814257" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource InsetCardStyle}" Margin="6,0">
-                            <Grid>
-                                <StackPanel>
-                                    <TextBlock Text="OPTİMİZE AYARLAR" Style="{StaticResource KickerText}" />
-                                    <TextBlock x:Name="WinOptAppliedCountText" Text="0 / 10 Aktif" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0" />
-                                </StackPanel>
-                                <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#39785D" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource InsetCardStyle}" Margin="6,0,0,0">
-                            <Grid>
-                                <StackPanel>
-                                    <TextBlock Text="GÜVENLİK DURUMU" Style="{StaticResource KickerText}" />
-                                    <TextBlock Text="%100 Güvenli" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0" />
-                                </StackPanel>
-                                <TextBlock Text="&#xE72E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#39785D" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
-                            </Grid>
-                        </Border>
-                    </UniformGrid>
+
+                        <UniformGrid Columns="4" Margin="0,0,0,12">
+                            <Border Style="{StaticResource InsetCardStyle}" Margin="0,0,6,0">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="MEVCUT BOŞTA RAM" Style="{StaticResource KickerText}" />
+                                        <TextBlock x:Name="WinOptFreeRamText" Text="— GB" FontSize="24" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Text="&#xE950;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#626875" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource InsetCardStyle}" Margin="6,0">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="KAZANILABİLİR POTANSİYEL" Style="{StaticResource KickerText}" />
+                                        <TextBlock Text="~2.0 - 4.0 GB" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrightBrush}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Text="&#xE8FB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#814257" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource InsetCardStyle}" Margin="6,0">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="OPTİMİZE AYARLAR" Style="{StaticResource KickerText}" />
+                                        <TextBlock x:Name="WinOptAppliedCountText" Text="0 / 19 Aktif" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#39785D" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource InsetCardStyle}" Margin="6,0,0,0">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="GÜVENLİK DURUMU" Style="{StaticResource KickerText}" />
+                                        <TextBlock Text="%100 Güvenli" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Text="&#xE72E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#39785D" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                                </Grid>
+                            </Border>
+                        </UniformGrid>
+                    </StackPanel>
 
                     <!-- Optimizasyon Listesi -->
                     <DataGrid Grid.Row="2" x:Name="WindowsOptimizeGrid" IsReadOnly="False" RowHeight="56">
